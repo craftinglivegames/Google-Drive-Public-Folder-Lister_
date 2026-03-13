@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Drive Public Folder Lister — все файлы сразу + экспорт</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+        body {
+            background: #f8f9fa;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
+        }
+        .container {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+            width: 100%;
+            max-width: 1200px;
+            padding: 32px;
+        }
+        h1 {
+            margin-top: 0;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 1.8rem;
+            color: #1e3c5c;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        h1 svg {
+            width: 32px;
+            height: 32px;
+            fill: #1e3c5c;
+        }
+        .sub {
+            color: #5f6368;
+            margin-bottom: 28px;
+            font-size: 0.95rem;
+            border-left: 4px solid #1a73e8;
+            padding-left: 16px;
+            background: #f1f3f4;
+            border-radius: 0 8px 8px 0;
+            line-height: 1.5;
+        }
+        .sub a {
+            color: #1a73e8;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .sub a:hover {
+            text-decoration: underline;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .input-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+        }
+        .input-row label {
+            min-width: 100px;
+            font-weight: 500;
+            color: #3c4043;
+        }
+        .input-row input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #dadce0;
+            border-radius: 28px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            background: #fff;
+        }
+        .input-row input:focus {
+            border-color: #1a73e8;
+            box-shadow: 0 0 0 2px rgba(26,115,232,0.2);
+        }
+        .input-row input::placeholder {
+            color: #9aa0a6;
+        }
+        button {
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 40px;
+            font-size: 1.1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            box-shadow: 0 2px 6px rgba(26,115,232,0.3);
+            width: fit-content;
+            min-width: 200px;
+            margin: 0 auto;
+        }
+        button:hover {
+            background: #1669c1;
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+        button:disabled {
+            background: #9aa0a6;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+        .status {
+            margin: 20px 0 10px;
+            font-weight: 500;
+            color: #1e3c5c;
+        }
+        .error-message {
+            background: #fce4e4;
+            border-left: 6px solid #d93025;
+            padding: 16px 20px;
+            border-radius: 12px;
+            color: #b3140b;
+            font-weight: 500;
+            margin: 20px 0;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .results-table th {
+            background: #f1f3f4;
+            color: #3c4043;
+            font-weight: 600;
+            padding: 14px 12px;
+            text-align: left;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .results-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e8eaed;
+            color: #202124;
+            vertical-align: middle;
+        }
+        .results-table tr:last-child td {
+            border-bottom: none;
+        }
+        .results-table tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+        .file-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 8px;
+            vertical-align: middle;
+            opacity: 0.7;
+        }
+        .folder-icon {
+            color: #f9ab00;
+        }
+        .file-link {
+            color: #1a73e8;
+            text-decoration: none;
+            font-weight: 500;
+            word-break: break-word;
+        }
+        .file-link:hover {
+            text-decoration: underline;
+        }
+        .size-badge {
+            background: #e8f0fe;
+            color: #1a73e8;
+            padding: 4px 10px;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            display: inline-block;
+        }
+        .mime-type {
+            color: #5f6368;
+            font-size: 0.85rem;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .export-settings {
+            background: #f1f3f4;
+            border-radius: 20px;
+            padding: 20px;
+            margin: 25px 0 15px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 24px;
+        }
+        .export-settings h3 {
+            margin: 0 0 8px 0;
+            font-size: 1.2rem;
+            color: #202124;
+            width: 100%;
+        }
+        .check-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: center;
+        }
+        .check-group label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 500;
+            color: #3c4043;
+            cursor: pointer;
+        }
+        .check-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #1a73e8;
+            cursor: pointer;
+        }
+        .export-btn {
+            background: #34a853;
+            margin: 0;
+            min-width: 180px;
+        }
+        .export-btn:hover {
+            background: #2e8b47;
+        }
+        .footer-note {
+            margin-top: 30px;
+            font-size: 0.85rem;
+            color: #5f6368;
+            text-align: center;
+            border-top: 1px solid #dadce0;
+            padding-top: 20px;
+        }
+        .progress {
+            font-size: 0.95rem;
+            color: #1a73e8;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>
+        <svg viewBox="0 0 24 24" width="32" height="32">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/>
+        </svg>
+        Google Drive Public Folder Lister
+    </h1>
+    <div class="sub">
+        Вставьте ссылку на общедоступную папку Google Drive и ваш <strong>API ключ</strong> (ключ можно получить в 
+        <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console</a>, включив Drive API).
+    </div>
+
+    <div class="input-group">
+        <div class="input-row">
+            <label for="folderLink">🔗 Ссылка на папку:</label>
+            <input type="text" id="folderLink" placeholder="https://drive.google.com/drive/folders/1a2b3c4d5e... или https://drive.google.com/open?id=...">
+        </div>
+        <div class="input-row">
+            <label for="apiKey">🔑 API ключ:</label>
+            <input type="text" id="apiKey" placeholder="Введите ваш API ключ (например, AIzaSy...)">
+        </div>
+    </div>
+
+    <button id="fetchBtn">📂 Загрузить ВСЕ файлы</button>
+
+    <div id="status" class="status"></div>
+    <div id="error" class="error-message" style="display: none;"></div>
+
+    <div id="resultsArea">
+        <table class="results-table" id="resultsTable" style="display: none;">
+            <thead>
+                <tr>
+                    <th>Тип</th>
+                    <th>Имя файла</th>
+                    <th>MIME-тип</th>
+                    <th>Размер</th>
+                    <th>Ссылка</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+
+    <!-- Блок настроек экспорта (изначально скрыт, появляется после загрузки) -->
+    <div id="exportBlock" style="display: none;">
+        <div class="export-settings">
+            <h3>⚙️ Настройки экспорта в TXT</h3>
+            <div class="check-group">
+                <label><input type="checkbox" id="exportName" checked> Имя файла</label>
+                <label><input type="checkbox" id="exportMime" checked> MIME-тип</label>
+                <label><input type="checkbox" id="exportSize" checked> Размер</label>
+                <label><input type="checkbox" id="exportLink" checked> Ссылка</label>
+                <label><input type="checkbox" id="exportNumbering"> Нумерация строк</label>
+            </div>
+            <button id="exportBtn" class="export-btn">📥 Экспорт в TXT</button>
+        </div>
+    </div>
+
+    <div class="footer-note">
+        ⚡ Инструмент автоматически загружает ВСЕ страницы (без пагинации). Если файлов очень много, процесс может занять некоторое время.<br>
+        🧩 Экспорт в TXT с настраиваемыми полями.
+    </div>
+</div>
+
+<script>
+    (function() {
+        // DOM элементы
+        const folderLinkInput = document.getElementById('folderLink');
+        const apiKeyInput = document.getElementById('apiKey');
+        const fetchBtn = document.getElementById('fetchBtn');
+        const statusDiv = document.getElementById('status');
+        const errorDiv = document.getElementById('error');
+        const resultsTable = document.getElementById('resultsTable');
+        const tableBody = document.getElementById('tableBody');
+        const exportBlock = document.getElementById('exportBlock');
+        const exportBtn = document.getElementById('exportBtn');
+        const exportName = document.getElementById('exportName');
+        const exportMime = document.getElementById('exportMime');
+        const exportSize = document.getElementById('exportSize');
+        const exportLink = document.getElementById('exportLink');
+        const exportNumbering = document.getElementById('exportNumbering');
+
+        // Хранилище всех загруженных файлов
+        let allFiles = [];
+
+        // Извлечение ID из ссылки Google Drive
+        function extractDriveIdFromUrl(url) {
+            if (!url) return null;
+            const patterns = [
+                /[?&]id=([a-zA-Z0-9_-]+)/,
+                /\/folders\/([a-zA-Z0-9_-]+)/,
+                /\/d\/([a-zA-Z0-9_-]+)/,
+            ];
+            for (let pattern of patterns) {
+                const match = url.match(pattern);
+                if (match) return match[1];
+            }
+            // fallback
+            const lastPart = url.split('/').pop().split('?')[0];
+            if (lastPart && /^[a-zA-Z0-9_-]{10,}$/.test(lastPart)) return lastPart;
+            return null;
+        }
+
+        // Форматирование размера
+        function formatSize(bytes) {
+            if (bytes === undefined || bytes === null || bytes === '') return '—';
+            const b = parseInt(bytes, 10);
+            if (isNaN(b) || b === 0) return '—';
+            const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+            let i = 0;
+            let size = b;
+            while (size >= 1024 && i < units.length - 1) {
+                size /= 1024;
+                i++;
+            }
+            return size.toFixed(1) + ' ' + units[i];
+        }
+
+        // Символ для типа файла
+        function getFileTypeSymbol(mimeType) {
+            if (mimeType === 'application/vnd.google-apps.folder') return '📁';
+            if (mimeType.startsWith('image/')) return '🖼️';
+            if (mimeType.startsWith('video/')) return '🎬';
+            if (mimeType.startsWith('audio/')) return '🎵';
+            if (mimeType.includes('pdf')) return '📄';
+            if (mimeType.includes('document')) return '📝';
+            if (mimeType.includes('spreadsheet')) return '📊';
+            if (mimeType.includes('presentation')) return '📽️';
+            return '📄';
+        }
+
+        // Экранирование HTML
+        function escapeHtml(unsafe) {
+            if (!unsafe) return '';
+            return unsafe
+                .replace(/&/g, "&")
+                .replace(/</g, "<")
+                .replace(/>/g, ">")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // Показать ошибку
+        function showError(message) {
+            errorDiv.style.display = 'flex';
+            errorDiv.innerHTML = `<span style="font-size:1.5rem;">⚠️</span> ${escapeHtml(message)}`;
+            resultsTable.style.display = 'none';
+            exportBlock.style.display = 'none';
+            statusDiv.innerHTML = '';
+        }
+
+        // Скрыть ошибку
+        function hideError() {
+            errorDiv.style.display = 'none';
+            errorDiv.innerHTML = '';
+        }
+
+        // Рендер таблицы на основе массива файлов
+        function renderFiles(files) {
+            if (!files || files.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px;">📭 В этой папке нет файлов (или доступ ограничен).</td></tr>';
+                resultsTable.style.display = 'table';
+                return;
+            }
+
+            let html = '';
+            files.forEach(file => {
+                const isFolder = file.mimeType === 'application/vnd.google-apps.folder';
+                const typeSymbol = getFileTypeSymbol(file.mimeType);
+                const sizeFormatted = isFolder ? '—' : formatSize(file.size);
+                const link = file.webViewLink || `https://drive.google.com/file/d/${file.id}/view`;
+                const fileName = file.name || '(без названия)';
+                const mimeShort = file.mimeType.split('/').pop().split('.').pop() || file.mimeType;
+
+                html += `<tr>
+                    <td style="font-size:1.4rem; text-align:center;">${typeSymbol}</td>
+                    <td><strong>${escapeHtml(fileName)}</strong></td>
+                    <td><div class="mime-type" title="${escapeHtml(file.mimeType)}">${escapeHtml(mimeShort)}</div></td>
+                    <td><span class="size-badge">${sizeFormatted}</span></td>
+                    <td><a href="${escapeHtml(link)}" target="_blank" class="file-link">🔗 открыть</a></td>
+                </tr>`;
+            });
+            tableBody.innerHTML = html;
+            resultsTable.style.display = 'table';
+        }
+
+        // Функция запроса одной страницы
+        async function fetchPage(folderId, apiKey, pageToken = null) {
+            let url = `https://www.googleapis.com/drive/v3/files?q='${encodeURIComponent(folderId)}'+in+parents&fields=files(id,name,mimeType,size,webViewLink),nextPageToken&key=${apiKey}&pageSize=100`;
+            if (pageToken) {
+                url += `&pageToken=${encodeURIComponent(pageToken)}`;
+            }
+            const response = await fetch(url);
+            const data = await response.json();
+            if (!response.ok) {
+                let errorMsg = `Ошибка API (${response.status}): `;
+                if (data.error && data.error.message) errorMsg += data.error.message;
+                else errorMsg += response.statusText;
+                throw new Error(errorMsg);
+            }
+            return data;
+        }
+
+        // Загрузить ВСЕ страницы (рекурсивно/циклически)
+        async function fetchAllFiles(folderId, apiKey) {
+            let pageToken = null;
+            let all = [];
+            let pageCount = 0;
+
+            do {
+                statusDiv.innerHTML = `⏳ Загрузка страницы ${++pageCount}... (найдено файлов: ${all.length})`;
+                const data = await fetchPage(folderId, apiKey, pageToken);
+                if (data.files && data.files.length) {
+                    all = all.concat(data.files);
+                }
+                pageToken = data.nextPageToken || null;
+            } while (pageToken);
+
+            return all;
+        }
+
+        // Основная загрузка всех файлов
+        async function loadAllFiles() {
+            const folderLink = folderLinkInput.value.trim();
+            const apiKey = apiKeyInput.value.trim();
+
+            if (!folderLink) {
+                showError('Введите ссылку на папку Google Drive');
+                return;
+            }
+            if (!apiKey) {
+                showError('Введите API ключ (получить в Google Cloud Console)');
+                return;
+            }
+
+            const folderId = extractDriveIdFromUrl(folderLink);
+            if (!folderId) {
+                showError('Не удалось извлечь ID папки из ссылки. Проверьте формат.');
+                return;
+            }
+
+            hideError();
+            statusDiv.innerHTML = '⏳ Начинаем загрузку всех файлов (это может занять время)...';
+            fetchBtn.disabled = true;
+            exportBlock.style.display = 'none'; // скрываем экспорт до завершения
+
+            try {
+                allFiles = await fetchAllFiles(folderId, apiKey);
+                renderFiles(allFiles);
+
+                statusDiv.innerHTML = `✅ Загружено файлов: ${allFiles.length}`;
+
+                // Показываем блок экспорта, если есть файлы
+                if (allFiles.length > 0) {
+                    exportBlock.style.display = 'block';
+                } else {
+                    exportBlock.style.display = 'none';
+                }
+            } catch (err) {
+                showError(err.message);
+                resultsTable.style.display = 'none';
+                exportBlock.style.display = 'none';
+                allFiles = [];
+            } finally {
+                fetchBtn.disabled = false;
+            }
+        }
+
+        // Экспорт в TXT
+        function exportToTxt() {
+            if (!allFiles.length) {
+                alert('Нет файлов для экспорта.');
+                return;
+            }
+
+            // Определяем выбранные поля
+            const fields = [];
+            if (exportName.checked) fields.push('name');
+            if (exportMime.checked) fields.push('mimeType');
+            if (exportSize.checked) fields.push('size');
+            if (exportLink.checked) fields.push('link');
+
+            if (fields.length === 0 && !exportNumbering.checked) {
+                alert('Выберите хотя бы одно поле для экспорта (или включите нумерацию).');
+                return;
+            }
+
+            // Создаём заголовок (если нужен) — можно пропустить, но для наглядности добавим
+            let headerParts = [];
+            if (exportNumbering.checked) headerParts.push('#');
+            if (exportName.checked) headerParts.push('NAME');
+            if (exportMime.checked) headerParts.push('MIME_TYPE');
+            if (exportSize.checked) headerParts.push('SIZE');
+            if (exportLink.checked) headerParts.push('LINK');
+            const header = headerParts.join('\t');
+
+            // Формируем строки
+            const lines = [];
+            if (header) lines.push(header);
+
+            allFiles.forEach((file, index) => {
+                const rowParts = [];
+                if (exportNumbering.checked) rowParts.push(index + 1);
+
+                if (exportName.checked) rowParts.push(file.name || '');
+                if (exportMime.checked) rowParts.push(file.mimeType || '');
+                if (exportSize.checked) {
+                    const isFolder = file.mimeType === 'application/vnd.google-apps.folder';
+                    rowParts.push(isFolder ? '-' : formatSize(file.size));
+                }
+                if (exportLink.checked) {
+                    const link = file.webViewLink || `https://drive.google.com/file/d/${file.id}/view`;
+                    rowParts.push(link);
+                }
+
+                lines.push(rowParts.join('\t'));
+            });
+
+            const content = lines.join('\n');
+
+            // Скачивание
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `drive_files_${new Date().toISOString().slice(0,10)}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Обработчики
+        fetchBtn.addEventListener('click', loadAllFiles);
+        exportBtn.addEventListener('click', exportToTxt);
+
+        // Скрываем ошибку при старте
+        hideError();
+    })();
+</script>
+</body>
+</html>
